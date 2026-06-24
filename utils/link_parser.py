@@ -1,12 +1,21 @@
 import re
 
-INSTAGRAM_PATTERN = re.compile(r"https?://(?:www\.)?instagram\.com/reel/")
-FACEBOOK_PATTERN = re.compile(r"https?://(?:www\.)?facebook\.com/.*/reel/")
-TIKTOK_PATTERN = re.compile(r"https?://(?:www\.)?tiktok\.com/")
+URL_PATTERN = re.compile(r"https?://\S+")
 
-def contains_supported_link(message_content: str) -> bool:
-    return any([
-        INSTAGRAM_PATTERN.search(message_content),
-        FACEBOOK_PATTERN.search(message_content),
-        TIKTOK_PATTERN.search(message_content),
-    ])
+INSTAGRAM_PATTERN = re.compile(r"instagram\.com/reel/")
+FACEBOOK_PATTERN = re.compile(r"facebook\.com/.*/reel/")
+TIKTOK_PATTERN = re.compile(r"tiktok\.com/")
+
+
+def extract_supported_url(message_content: str) -> str | None:
+    urls = URL_PATTERN.findall(message_content)
+
+    for url in urls:
+        if (
+            INSTAGRAM_PATTERN.search(url)
+            or FACEBOOK_PATTERN.search(url)
+            or TIKTOK_PATTERN.search(url)
+        ):
+            return url
+
+    return None
