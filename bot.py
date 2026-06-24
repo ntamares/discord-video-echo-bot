@@ -8,18 +8,21 @@ from utils.link_parser import extract_supported_url
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-# CHANNEL_ID_RAW = os.getenv("BOT_TESTING_CHANNEL_ID")
+ALLOWED_CHANNELS = {
+    547910426994933793,
+    779579821209550859,
+    445058358983131143,
+    898427904801783878,
+    533888115186728961,
+    1102690101408038942,
+    1117958655829082205,
+    707120335882813480,
+    721222588688236604,
+    1234185445806440509,
+}
 
 if not TOKEN:
     raise ValueError("DISCORD_TOKEN environment variable is not set")
-
-# if not CHANNEL_ID_RAW:
-#     raise ValueError("BOT_TESTING_CHANNEL_ID environment variable is not set")
-
-# try:
-#     CHANNEL_ID = int(CHANNEL_ID_RAW)
-# except ValueError:
-#     raise ValueError("BOT_TESTING_CHANNEL_ID must be an integer")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -37,6 +40,9 @@ async def on_ready():
 async def on_message(message):
 
     if message.author.bot:
+        return
+    
+    if message.channel.id not in ALLOWED_CHANNELS:
         return
     
     url = extract_supported_url(message.content)
