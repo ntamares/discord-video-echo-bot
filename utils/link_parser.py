@@ -4,8 +4,8 @@ URL_PATTERN = re.compile(r"https?://\S+")
 SUPPORTED_PATTERNS = (
     re.compile(r"instagram\.com/reel/"),
     re.compile(r"facebook\.com/reel/"),
-    re.compile(r"youtube\.com/watch\?v="),
-    re.compile(r"youtube\.com/shorts/"),
+    # re.compile(r"youtube\.com/watch\?v="),
+    # re.compile(r"youtube\.com/shorts/"),
     re.compile(r"v\.redd\.it/"),
     re.compile(r"reddit\.com/r/"),
 )
