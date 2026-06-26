@@ -1,28 +1,28 @@
-import asyncio
-import discord
-import os
+import asyncio, discord, os, logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from services.downloader import download_video
 from utils.link_parser import extract_supported_url
+from utils.channel_id_parser import parse_allowed_channels
+from utils.logger import setup_activity_logging, setup_error_logging
 
 load_dotenv()
+error_logger = setup_error_logging()
+activity_logger = setup_activity_logging()
+app_logger = logging.getLogger(__name__)
+
 TOKEN = os.getenv("DISCORD_TOKEN")
-ALLOWED_CHANNELS = {
-    547910426994933793,
-    779579821209550859,
-    445058358983131143,
-    898427904801783878,
-    533888115186728961,
-    1102690101408038942,
-    1117958655829082205,
-    707120335882813480,
-    721222588688236604,
-    1234185445806440509,
-}
+ALLOWED_CHANNELS_RAW = os.getenv("ALLOWED_CHANNELS")
 
 if not TOKEN:
     raise ValueError("DISCORD_TOKEN environment variable is not set")
+
+if not ALLOWED_CHANNELS_RAW:
+    raise ValueError("ALLOWED_CHANNELS environment variable is not set")
+
+ALLOWED_CHANNELS = parse_allowed_channels(ALLOWED_CHANNELS_RAW)
+if not ALLOWED_CHANNELS:
+    raise ValueError("ALLOWED_CHANNELS environment variable did not contain valid channel IDs")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -34,11 +34,10 @@ bot = commands.Bot(
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user}")
+    app_logger.info("Logged in as %s", bot.user)
 
 @bot.event
 async def on_message(message):
-
     if message.author.bot:
         return
     
@@ -47,24 +46,62 @@ async def on_message(message):
     
     url = extract_supported_url(message.content)
 
-    #TODO better/more accurate logging
+    if not url:
+        return
 
-    if extract_supported_url(message.content) and url:        
-        try:
-            print("Downloading video")
-            file_path = await asyncio.to_thread(download_video, url)
+    file_path: str | None = None
+    
+    try:
+        file_path = await asyncio.to_thread(download_video, url)
+        file_size = os.path.getsize(file_path)
+        user_tag = str(message.author)
+        user_id = message.author.id
+        channel_id = message.channel.id
+        guild_id = message.guild.id if message.guild else None
 
-            await message.reply(
-                file=discord.File(file_path),
-                mention_author=False
-            )
+        activity_logger.info(
+            "download_success url=%s file_size_bytes=%s message_id=%s user_tag=%s user_id=%s channel_id=%s guild_id=%s",
+            url,
+            file_size,
+            message.id,
+            user_tag,
+            user_id,
+            channel_id,
+            guild_id,
+        )
 
+        await message.reply(
+            file=discord.File(file_path),
+            mention_author=False
+        )
+
+        activity_logger.info(
+            "upload_success url=%s file_size_bytes=%s message_id=%s user_tag=%s user_id=%s channel_id=%s guild_id=%s",
+            url,
+            file_size,
+            message.id,
+            user_tag,
+            user_id,
+            channel_id,
+            guild_id,
+        )
+        
+    except ValueError as exc:
+        error_logger.error(
+            "Handled failure message_id=%s url=%s error=%s",
+            message.id,
+            url,
+            str(exc),
+        )
+    except Exception:
+        error_logger.exception(
+            "Unexpected failure while processing message_id=%s url=%s",
+            message.id,
+            url,
+        )
+    finally:
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
-
-        except Exception as e:
-            await message.channel.send(f"Download failed: {e}")
-    else:
-        print("Domain not supported")
 
     await bot.process_commands(message)
 
